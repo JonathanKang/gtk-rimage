@@ -33,7 +33,7 @@ main (int argc, char *argv[])
     pixbuf = gdk_pixbuf_new_from_stream (input_stream, NULL, &error);
     if (error != NULL)
     {
-        g_warning ("unable to create pixbuf: %s\n",
+        g_warning ("unable to create pixbuf: %s",
                    error->message);
         g_clear_error (&error);
 
