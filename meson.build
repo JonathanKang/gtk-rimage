@@ -9,6 +9,6 @@ deps = [
 
 executable(
     'gtk_rimage',
-    'soup.c',
+    'gtk-rimage.c',
     dependencies: deps
 )
