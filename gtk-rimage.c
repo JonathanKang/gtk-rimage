@@ -3,57 +3,47 @@
 #include <gtk/gtk.h>
 #include <libsoup/soup.h>
 
-static void
-on_area_prepared (GdkPixbufLoader *loader,
-                  gpointer user_data)
+static gboolean
+draw_cb (GtkWidget *widget,
+         cairo_t *cr,
+         gpointer user_data)
 {
-    GdkPixbuf *pixbuf;
-    GtkWidget *image;
+    gint height;
+    gint width;
+    GdkPixbuf *temp;
 
-    image = GTK_WIDGET (user_data);
+    height = gtk_widget_get_allocated_height (widget);
+    width = gtk_widget_get_allocated_width (widget);
 
-    pixbuf = gdk_pixbuf_loader_get_pixbuf (loader);
-    gdk_pixbuf_fill (pixbuf, 0xaaaaaaff);
+    temp = gdk_pixbuf_scale_simple (GDK_PIXBUF (user_data),
+                                    width, height, GDK_INTERP_BILINEAR);
+    gdk_cairo_set_source_pixbuf (cr, temp, 0, 0);
+    cairo_paint (cr);
 
-    gtk_image_set_from_pixbuf (GTK_IMAGE (image), pixbuf);
-}
+    g_object_unref (temp);
 
-static void
-on_area_updated (GdkPixbufLoader *loader,
-                 gint             x,
-                 gint             y,
-                 gint             width,
-                 gint             height,
-                 gpointer         user_data)
-{
-    GdkPixbuf *pixbuf;
-    GtkWidget *image;
-
-    image = GTK_WIDGET (user_data);
-
-    pixbuf = gtk_image_get_pixbuf (GTK_IMAGE (image));
-    g_object_ref (pixbuf);
-    gtk_image_set_from_pixbuf (GTK_IMAGE (image), pixbuf);
-    g_object_unref (pixbuf);
+    return FALSE;
 }
 
 int
 main (int argc, char *argv[])
 {
+    GdkPixbuf *pixbuf;
     GdkPixbufLoader *loader;
     GError *error = NULL;
+    GtkWidget *drawing_area;
     GtkWidget *window;
-    GtkWidget *image;
     guint status_code;
     SoupMessage *msg;
     SoupSession *session;
 
     gtk_init (&argc, &argv);
 
-    image = gtk_image_new_from_pixbuf (NULL);
+    drawing_area = gtk_drawing_area_new ();
+
     window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
     g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
-    gtk_container_add (GTK_CONTAINER (window), image);
+    gtk_container_add (GTK_CONTAINER (window), drawing_area);
     gtk_widget_show_all (window);
 
     /* HTTP request */
@@ -68,10 +58,6 @@ main (int argc, char *argv[])
     }
 
     loader = gdk_pixbuf_loader_new ();
-    g_signal_connect (loader, "area-prepared",
-                      G_CALLBACK (on_area_prepared), image);
-    g_signal_connect (loader, "area-updated",
-                      G_CALLBACK (on_area_updated), image);
     gdk_pixbuf_loader_write (loader,
                              (guchar *)msg->response_body->data,
                              msg->response_body->length, &error);
@@ -83,6 +69,9 @@ main (int argc, char *argv[])
 
         return 1;
     }
+
+    pixbuf = gdk_pixbuf_loader_get_pixbuf (loader);
+    g_signal_connect (drawing_area, "draw", G_CALLBACK (draw_cb), pixbuf);
 
     gtk_main ();
 
